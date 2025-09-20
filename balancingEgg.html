@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Egg Balancing Game - Head Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: linear-gradient(180deg, #FFF1E1 0%, #FFF7EE 100%);
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .container {
+            width: 884px;
+            height: 487px;
+            left: 278px;
+            top: 124px;
+            position: absolute;
+            background: #84AD35;
+            border-radius: 50px;
+        }
+        
+        .camera-box {
+            width: 849px;
+            height: 452px;
+            left: 296px;
+            top: 141px;
+            position: absolute;
+            background: rgba(45.85, 45.85, 45.85, 0.38);
+            border-radius: 50px;
+            border: 5px black solid;
+            overflow: hidden;
+        }
+        
+        .camera-box-inner {
+            width: 849px;
+            height: 452px;
+            left: 296px;
+            top: 141px;
+            position: absolute;
+            background: rgba(255, 255, 255, 0);
+            border-radius: 50px;
+            border: 5px #FFF6ED solid;
+            pointer-events: none;
+        }
+        
+        .side-panel-left {
+            width: 233px;
+            height: 487px;
+            left: 24px;
+            top: 124px;
+            position: absolute;
+            background: #84AD35;
+            border-radius: 40px;
+        }
+        
+        .side-panel-right {
+            width: 233px;
+            height: 487px;
+            left: 1183px;
+            top: 124px;
+            position: absolute;
+            background: #84AD35;
+            border-radius: 40px;
+        }
+        
+        .bottom-panel {
+            width: 884px;
+            height: 100px;
+            left: 278px;
+            top: 627px;
+            position: absolute;
+            background: #84AD35;
+            border-radius: 40px;
+        }
+        
+        .title {
+            left: 343px;
+            top: 650px;
+            position: absolute;
+            color: white;
+            font-size: 44.06px;
+            font-family: Inter;
+            font-weight: 700;
+            word-wrap: break-word;
+        }
+        
+        .enable-camera-box {
+            width: 453px;
+            height: 100px;
+            left: 494px;
+            top: 306px;
+            position: absolute;
+            background: #84AD35;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .enable-camera-box:hover {
+            transform: scale(1.05);
+        }
+        
+        .enable-camera-text {
+            width: 319px;
+            left: 561px;
+            top: 329px;
+            position: absolute;
+            color: white;
+            font-size: 44.06px;
+            font-family: Inter;
+            font-weight: 700;
+            word-wrap: break-word;
+            text-align: center;
+            pointer-events: none;
+        }
+        
+        .about-title {
+            width: 282px;
+            left: 1200px;
+            top: 141px;
+            position: absolute;
+            color: white;
+            font-size: 25px;
+            font-family: Inter;
+            font-weight: 700;
+            word-wrap: break-word;
+        }
+        
+        .how-to-play-title {
+            width: 150px;
+            left: 65px;
+            top: 141px;
+            position: absolute;
+            color: white;
+            font-size: 25px;
+            font-family: Inter;
+            font-weight: 700;
+            word-wrap: break-word;
+        }
+        
+        .instructions {
+            width: 200px;
+            left: 40px;
+            top: 205px;
+            position: absolute;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            color: white;
+            font-size: 20px;
+            font-family: Inter;
+            font-weight: 700;
+            word-wrap: break-word;
+        }
+        
+        .icon {
+            width: 67px;
+            height: 67px;
+            left: 1361px;
+            top: 16px;
+            position: absolute;
+            background: #FFF6ED;
+            border-radius: 50%;
+        }
+        
+        #cameraView {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 45px;
+            transform: scaleX(-1);
+            display: none;
+        }
+        
+        .camera-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-family: Inter;
+            font-weight: 700;
+        }
+        
+        .camera-status {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: none;
+        }
+        
+        .countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            color: white;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            display: none;
+            z-index: 10;
+        }
+        
+        .egg-image {
+            width: 152px; /* Value grabbed from Figma*/
+            height: 152px;
+            position: absolute;
+            z-index: 100;
+            display: none;
+            pointer-events: none;
+            transition: transform 0.2s;
+            transform: scaleX(-1); /* Flip the egg image to ensure placeEggOnHead function is working correctly*/
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            display: none;
+        }
+        
+        .detection-status {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: none;
+        }
+
+        .restart-button {
+            width: 64px;
+            height: 64px;
+            left: 320px;
+            top: 504px;
+            position: absolute;
+            cursor: pointer;
+            transition: transform 1s;
+            /* display: none; Initially hidden */
+            z-index: 200;
+        }
+
+        .restart-button.spinning {
+            animation: spin 0.5s linear;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container"></div>
+    
+    <div class="camera-box">
+        <video id="cameraView" autoplay playsinline></video>
+        <div class="camera-placeholder">Camera feed will appear here</div>
+        <div class="camera-status" id="cameraStatus">Accessing camera...</div>
+        <div class="countdown" id="countdown">3</div>
+        <div class="loading" id="modelLoading">Loading detection model...</div>
+        <div class="detection-status" id="detectionStatus">Detecting head...</div>
+        <img id="defaultEgg" class="egg-image" src="./defaultEgg.png" alt="Egg">
+    </div>
+    
+    <div class="camera-box-inner"></div>
+    <div class="side-panel-left"></div>
+    <div class="side-panel-right"></div>
+    <div class="bottom-panel"></div>
+    
+    <div class="title">Balancing Egg with Computer Vision</div>
+    
+    <div class="enable-camera-box" id="enableCameraBtn"></div>
+    <div class="enable-camera-text">Enable Camera</div>
+    
+    <div class="about-title">About This Game</div>
+    <div class="how-to-play-title">How To Play</div>
+    
+    <div class="instructions">
+        Click "Enable Camera & Start Game"<br/>
+        Allow camera access when prompted<br/>
+        Wait for the countdown (3, 2, 1)<br/>
+        Balance the egg on the spoon by moving your head<br/>
+        Try to keep the egg balanced as long as possible!
+    </div>
+    
+    <div class="icon"></div>
+    <img id="restartButton" class="restart-button" src="./restartButton.png" alt="Restart Game">
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const enableCameraBtn = document.getElementById('enableCameraBtn');
+            const cameraView = document.getElementById('cameraView');
+            const cameraPlaceholder = document.querySelector('.camera-placeholder');
+            const cameraStatus = document.getElementById('cameraStatus');
+            const countdownElement = document.getElementById('countdown');
+            const eggImage = document.getElementById('defaultEgg');
+            const modelLoading = document.getElementById('modelLoading');
+            const detectionStatus = document.getElementById('detectionStatus');
+            const restartButton = document.getElementById('restartButton');
+            
+            let model = null;
+            let stream = null;
+            let detectionInterval = null;
+            let headPosition = { x: 0, y: 0, width: 0, height: 0 };
+            let headDetected = false;
+            let gameStarted = false;
+            
+            enableCameraBtn.addEventListener('click', initCamera);
+            restartButton.addEventListener('click', restartGame);
+            
+            async function initCamera() {
+                try {
+                    cameraStatus.textContent = "Accessing camera...";
+                    cameraStatus.style.display = "block";
+                    
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            facingMode: 'user'
+                        }
+                    });
+                    
+                    cameraView.srcObject = stream;
+                    cameraView.style.display = "block";
+                    cameraPlaceholder.style.display = "none";
+                    
+                    // Remove the Enable Camera button after successful camera activation
+                    const enableCameraBtn = document.getElementById('enableCameraBtn');
+                    const enableCameraText = document.querySelector('.enable-camera-text');
+                    
+                    if (enableCameraBtn) {
+                        enableCameraBtn.style.display = 'none';
+                    }
+                    
+                    if (enableCameraText) {
+                        enableCameraText.style.display = 'none';
+                    }
+                    
+                    cameraStatus.textContent = "Camera active";
+                    
+                    // Load the face detection model
+                    modelLoading.style.display = 'block';
+                    model = await blazeface.load();
+                    modelLoading.style.display = 'none';
+                    
+                    // Start detecting faces
+                    detectionStatus.style.display = 'block';
+                    detectionStatus.textContent = "Position your face in the frame";
+                    detectHead();
+                    
+                    setTimeout(() => {
+                        cameraStatus.style.display = "none";
+                        // Start the countdown
+                        startCountdown();
+                    }, 2000);
+                    
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    cameraStatus.textContent = "Camera access denied";
+                    
+                    setTimeout(() => {
+                        cameraStatus.style.display = "none";
+                    }, 3000);
+                }
+            }
+            
+            async function detectHead() {
+                if (!model) return;
+        
+                detectionInterval = setInterval(async () => {
+                    const predictions = await model.estimateFaces(cameraView, false);
+                    
+                    if (predictions.length > 0) {
+                        // Get the first face detected
+                        const face = predictions[0];
+                        
+                        // Calculate head position
+                        const cameraBox = document.querySelector('.camera-box');
+                        const cameraBoxRect = cameraBox.getBoundingClientRect();
+                        
+                        // Get the bounding box of the face
+                        const topLeft = face.topLeft;
+                        const bottomRight = face.bottomRight;
+                        
+                        // Calculate position and size
+                        headPosition.width = (bottomRight[0] - topLeft[0]) * cameraBoxRect.width / cameraView.videoWidth;
+                        headPosition.height = (bottomRight[1] - topLeft[1]) * cameraBoxRect.height / cameraView.videoHeight;
+                        headPosition.x = topLeft[0] * cameraBoxRect.width / cameraView.videoWidth;
+                        headPosition.y = topLeft[1] * cameraBoxRect.height / cameraView.videoHeight;
+                        
+                        headDetected = true;
+                        detectionStatus.textContent = "Head detected!";
+                        
+                        // If game has started and we lose head detection during countdown
+                        if (gameStarted && !headDetected) {
+                            // Restart countdown if head is lost during countdown
+                            restartCountdown();
+                        }
+                    } else {
+                        headDetected = false;
+                        detectionStatus.textContent = "No head detected - position your face in the frame";
+
+                        // If game has started and we lose head detection during countdown
+                        if (gameStarted && !headDetected) {
+                            // Restart countdown if head is lost during countdown
+                            restartCountdown();
+                        }
+                    }
+                }, 500); // Check for faces every 500ms
+            }
+            
+            function startCountdown() {
+                gameStarted = true;
+                countdownElement.style.display = 'block';
+                let count = 1; // Update countdown 
+
+                // Place the egg on the user's head
+                placeEggOnHead();
+
+                const countdownInterval = setInterval(() => {
+                    countdownElement.textContent = count;
+                    
+                    if (count === 0) {
+                        clearInterval(countdownInterval);
+                        countdownElement.textContent = "GO!";
+                        
+                        // Show restart button
+                        restartButton.style.display = 'block';
+                        
+                        setTimeout(() => {
+                            countdownElement.style.display = 'none';
+                            detectionStatus.style.display = 'none';
+                            // Start the game here
+                        }, 1000);
+                    }
+                    
+                    count--;
+                }, 1000); // Determines how long to wait in ms
+            }
+            
+            function restartCountdown() {
+                // Reset the countdown if head is lost during countdown
+                countdownElement.textContent = "Please position your face";
+                
+                setTimeout(() => {
+                    startCountdown();
+                }, 2000);
+            }
+            
+            function placeEggOnHead() {
+                if (!headDetected) {
+                    // Fallback if no head detected - place in center
+                    const cameraBox = document.querySelector('.camera-box');
+                    const cameraBoxRect = cameraBox.getBoundingClientRect();
+                    
+                    headPosition.x = cameraBoxRect.width / 2 - 30;
+                    headPosition.y = cameraBoxRect.height * 0.25 - 40;
+                }
+                
+                // Position the egg image at the top center of the head
+                eggImage.style.display = 'block';
+                eggImage.style.left = `${headPosition.x + headPosition.width/2 - 180}px`; // Center the egg (360px width)
+                eggImage.style.top = `${headPosition.y - 180}px`; // Position above the head
+                
+                console.log("Egg placed on head position");
+            }
+            
+            function restartGame() {
+                // Add spinning animation
+                restartButton.classList.add('spinning');
+                
+                // Remove the egg
+                eggImage.style.display = 'none';
+                
+                // Reset detection status
+                detectionStatus.style.display = 'block';
+                detectionStatus.textContent = "Detecting head...";
+                
+                // Remove spinning class after animation completes
+                setTimeout(() => {
+                    restartButton.classList.remove('spinning');
+                    
+                    // Restart the countdown
+                    startCountdown();
+                }, 1000);
+            }
+            
+            // Clean up when leaving the page
+            window.addEventListener('beforeunload', () => {
+                if (detectionInterval) {
+                    clearInterval(detectionInterval);
+                }
+                
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -280,6 +280,16 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /*Help function to ensure head is being tracked correctly*/ 
+        .head-tracker-box {
+            position: absolute;
+            border: 3px solid #00ff00;
+            background: rgba(0, 255, 0, 0.2);
+            z-index: 90;
+            pointer-events: none;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -293,6 +303,7 @@
         <div class="loading" id="modelLoading">Loading detection model...</div>
         <div class="detection-status" id="detectionStatus">Detecting head...</div>
         <img id="defaultEgg" class="egg-image" src="./defaultEgg.png" alt="Egg">
+        <div id="headTracker" class="head-tracker-box"></div>  <!-- Visual to track position of head -->
     </div>
     
     <div class="camera-box-inner"></div>
@@ -309,11 +320,11 @@
     <div class="how-to-play-title">How To Play</div>
     
     <div class="instructions">
-        Click "Enable Camera & Start Game"<br/>
-        Allow camera access when prompted<br/>
-        Wait for the countdown (3, 2, 1)<br/>
-        Balance the egg on the spoon by moving your head<br/>
-        Try to keep the egg balanced as long as possible!
+        1. Click "Enable Camera & Start Game"<br/>
+        2. Allow camera access when prompted<br/>
+        3. Wait for the countdown (3, 2, 1)<br/>
+        4. Balance the egg on the spoon by moving your head<br/>
+        5. Try to keep the egg balanced as long as possible!
     </div>
     
     <div class="icon"></div>
@@ -374,6 +385,9 @@
                     
                     // Load the face detection model
                     modelLoading.style.display = 'block';
+                    // blazeface.load() initiates the loading of the pre-trained BlazeFace model, 
+                    // which is a lightweight neural network designed for real-time face 
+                    // detection, particularly optimized for mobile and web environments.
                     model = await blazeface.load();
                     modelLoading.style.display = 'none';
                     
@@ -419,12 +433,17 @@
                         // Calculate position and size
                         headPosition.width = (bottomRight[0] - topLeft[0]) * cameraBoxRect.width / cameraView.videoWidth;
                         headPosition.height = (bottomRight[1] - topLeft[1]) * cameraBoxRect.height / cameraView.videoHeight;
-                        headPosition.x = topLeft[0] * cameraBoxRect.width / cameraView.videoWidth;
+
+                        // Flip the X-coordinate to match the mirrored video display
+                        // Concern: Some users might not have their camera flipped. Do I make it an option to flip the coordinates for other users? 
+                        headPosition.x = cameraBoxRect.width - (topLeft[0] * cameraBoxRect.width / cameraView.videoWidth) - headPosition.width;
                         headPosition.y = topLeft[1] * cameraBoxRect.height / cameraView.videoHeight;
                         
+                        // Update booleans
                         headDetected = true;
                         detectionStatus.textContent = "Head detected!";
-                        
+                        // Function to place green border around user's face 🟢
+                        updateHeadTracker();
                         // If game has started and we lose head detection during countdown
                         if (gameStarted && !headDetected) {
                             // Restart countdown if head is lost during countdown
@@ -433,6 +452,8 @@
                     } else {
                         headDetected = false;
                         detectionStatus.textContent = "No head detected - position your face in the frame";
+                        // Function to place green border around user's face 🟢
+                         updateHeadTracker();
 
                         // If game has started and we lose head detection during countdown
                         if (gameStarted && !headDetected) {
@@ -493,13 +514,18 @@
                 
                 // Position the egg image at the top center of the head
                 eggImage.style.display = 'block';
-                eggImage.style.left = `${headPosition.x + headPosition.width/2 - 180}px`; // Center the egg (360px width)
+                eggImage.style.left = `${headPosition.x + headPosition.width/2 - 50}px`; // Center the egg
                 eggImage.style.top = `${headPosition.y - 180}px`; // Position above the head
                 
                 console.log("Egg placed on head position");
             }
             
             function restartGame() {
+                // Ensure player is not able to restart when game has not started 
+                if (!gameStarted){
+                    console.log("Game hasn't started yet - restart not available");
+                    return; // Exit the function early
+                }
                 // Add spinning animation
                 restartButton.classList.add('spinning');
                 
@@ -519,6 +545,20 @@
                 }, 1000);
             }
             
+            function updateHeadTracker() { // Might remove after fully getting game to run with physics included :)
+                const headTracker = document.getElementById('headTracker');
+                
+                if (headDetected) {
+                    headTracker.style.display = 'block';
+                    headTracker.style.left = `${headPosition.x}px`;
+                    headTracker.style.top = `${headPosition.y}px`;
+                    headTracker.style.width = `${headPosition.width}px`;
+                    headTracker.style.height = `${headPosition.height}px`;
+                } else {
+                    headTracker.style.display = 'none';
+                }
+            }
+
             // Clean up when leaving the page
             window.addEventListener('beforeunload', () => {
                 if (detectionInterval) {
